@@ -14,23 +14,14 @@ Obsidian vault を Zettelkasten 方式で管理するスキル。調査結果の
 - vault パスが必要な時（filesystem フォールバックなど）は `obsidian vaults verbose` の出力から該当 vault 名の行のパスを取得する
 - 関連スキル: `obsidian-cli`（CLI操作）、`obsidian-markdown`（Markdown構文）
 
-## CLI フォールバック
+## CLI と filesystem の使い分け
 
-ノートの作成・編集には `obsidian` コマンドを優先する。Obsidian が起動していない、CLI が落ちる、または対象コマンドが失敗する場合は filesystem 操作で直接 vault を読み書きする。
+全操作で `obsidian` コマンドを優先する。`command -v obsidian` で有無を確認し、`$OBSIDIAN_KNOWLEDGE_VAULT` を `vault=` 引数に渡して目的のコマンド（`search`, `read`, `create`, `append`, `daily:read`, `daily:append` など）を実行する。
 
-**判定手順:**
+- 例: `obsidian vault="$OBSIDIAN_KNOWLEDGE_VAULT" search query="test"`
+- `create` / `append` はデフォルトでファイルを開かない。エディタで開きたい時だけ `open` を付ける
 
-1. `command -v obsidian` で CLI の有無を確認する
-2. CLI がある場合は、`obsidian vaults verbose` で既知の vault とパスを確認する
-3. `$OBSIDIAN_KNOWLEDGE_VAULT` を `vault=` 引数に置いてコマンドを実行する。未設定なら手順 2 の一覧から使う vault をユーザーに確認する
-4. `search`, `read`, `create`, `append`, `daily:read`, `daily:append` など目的のコマンドを実行する
-   - 例: `obsidian vault="$OBSIDIAN_KNOWLEDGE_VAULT" search query="test"`
-   - 例: `obsidian vault="$OBSIDIAN_KNOWLEDGE_VAULT" daily:path` が `dailynotes/YYYY/M月/YYYY-MM-DD.md` を返すことを確認する
-5. 対象コマンドが成功 → Obsidian CLI の結果を使用する
-6. CLI が無い、または対象コマンドが失敗 → filesystem 操作で vault ディレクトリ内の `.md` ファイルを直接読み書きする（vault パスは手順 2 の `verbose` 出力から取得）
-   - `obsidian-markdown` スキルの構文規約に従って frontmatter + 本文を構成する
-
-CLI が使える場合はファイルを開かないよう `silent` フラグを付ける。filesystem に直接書き込む場合は、vault パスへの書き込み権限を確認し、権限が無ければユーザー承認を取る。
+CLI が無い・落ちる・対象コマンドが失敗する場合は filesystem 操作にフォールバックし、vault ディレクトリ内の `.md` ファイルを直接読み書きする。vault パスは `obsidian vaults verbose` が使えればその出力から取得し、CLI 自体が使えない場合はユーザーに確認する。書き込みは `obsidian-markdown` スキルの構文規約に従って frontmatter + 本文を構成し、書き込み権限が無ければユーザー承認を取る。
 
 ## Zettelkasten 規約
 
@@ -113,7 +104,7 @@ date: 2026-06-09
 1. 会話コンテキストから保存すべき内容を特定する（ユーザーが明示した範囲、または直近の調査・分析結果）
 2. アトミック性を判断する。複数の独立した概念を含む場合は分割を提案する
 3. `obsidian search` で関連する既存ノートを検索する
-4. ノートの種類を判断する:
+4. ノートの種類を判断する（save が作るのは Permanent / Literature。MOC は手順 6、Daily は `daily`、Plan は `plans/` で別途扱う）:
    - 自分の分析・まとめ → Permanent Note
    - 外部ドキュメント・記事の要約 → Literature Note（`source` フィールドに出典を記載）
 5. Zettelkasten 規約に従ってノートを作成する:
