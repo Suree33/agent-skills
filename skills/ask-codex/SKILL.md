@@ -1,12 +1,10 @@
 ---
 name: ask-codex
 description: >-
-  Consult OpenAI's Codex CLI (`codex exec`) for a second opinion, design/implementation
-  advice, deep root-cause investigation, or a code review of the current changes. Use
-  whenever the user wants to "ask Codex", "have Codex review this", or "let Codex
-  investigate" — or otherwise run `codex exec` directly for a fresh perspective on a
-  design, a tricky bug, a race condition, or a diff, even if they don't say the exact
-  words.
+  OpenAI Codex CLI（codex exec）で第二の意見・設計/実装アドバイス・根本原因の深掘り調査・変更のコードレビューを依頼する。
+  ユーザーが「Codex」と明示しなくても、第二の視点や深掘りが有用と判断したら積極的にこのスキルを使う。
+  例: 設計/API 選定の相談、再現困難なバグ・レースコンディション・intermittent 障害、大きな diff/PR のレビュー、複数案のトレードオフ比較、自分だけでは確信が持てない調査。
+  単純な 1 行修正・通常の実装・Codex 不要の軽い質問には使わない。
 ---
 
 # ask-codex
