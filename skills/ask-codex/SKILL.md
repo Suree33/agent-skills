@@ -5,6 +5,9 @@ description: >-
   ユーザーが「Codex」と明示しなくても、第二の視点や深掘りが有用と判断したら積極的にこのスキルを使う。
   例: 設計/API 選定の相談、再現困難なバグ・レースコンディション・intermittent 障害、大きな diff/PR のレビュー、複数案のトレードオフ比較、自分だけでは確信が持てない調査。
   単純な 1 行修正・通常の実装・Codex 不要の軽い質問には使わない。
+license: MIT
+metadata:
+  author: Suree33
 ---
 
 # ask-codex

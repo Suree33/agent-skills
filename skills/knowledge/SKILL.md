@@ -1,6 +1,9 @@
 ---
 name: knowledge
 description: Obsidian vault のナレッジ管理。ノート・デイリーノート・MOC の検索、保存、整理に使う。記録・参照の意図がある時や、コードベース外のドメイン知識・社内ルール・意思決定が関わる時は能動的に検索・保存する。
+license: MIT
+metadata:
+  author: Suree33
 ---
 
 # Knowledge — Obsidian ナレッジ管理
