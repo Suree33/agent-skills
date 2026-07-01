@@ -20,6 +20,10 @@ Codex は粘り強く調査して精度を上げる傾向があるため、**第
 - `codex` CLI がインストール済みで認証済みであること（`codex --version` で確認できる）。
 - 認証が切れている場合は Codex 側のセットアップが必要なので、その旨をユーザーに伝える。
 
+## 実行前に
+
+Codex を呼ぶ前に、何を相談するのかを一言ユーザーに伝える。承認を待つ必要はなく、伝えたらそのまま実行してよい。
+
 ## 基本の呼び出しパターン
 
 Codex は **read-only の上位 reviewer** なので、`-s read-only` を既定にする。プロンプトは shell エスケープを避けるため **stdin 経由**（`codex exec -`）で渡す。
@@ -70,7 +74,7 @@ echo "=== ANSWER ==="; cat "$OUT"
 
 ### Web 検索
 
-`~/.codex/config.toml` に `web_search = "live"` が設定されていれば、Codex は **web 検索が使える**（現環境では設定済み）。web 検索は Responses のネイティブツールなので、`-s read-only`（shell 実行のみを制限）でも止まらない。ライブラリ・API・CLI の具体仕様を確認させたいときは、プロンプトで「公式ドキュメントを web 検索で確認して」と明示する。`codex exec` 自体に `--search` フラグは無く、config の `web_search` で制御する。
+`~/.codex/config.toml` に `web_search = "live"` が設定されていれば、Codex は **web 検索が使える**。web 検索は Responses のネイティブツールなので、`-s read-only`（shell 実行のみを制限）でも止まらない。ライブラリ・API・CLI の具体仕様を確認させたいときは、プロンプトで「公式ドキュメントを web 検索で確認して」と明示する。`codex exec` 自体に `--search` フラグは無く、config の `web_search` で制御する。
 
 ### ヘルプ表示
 
