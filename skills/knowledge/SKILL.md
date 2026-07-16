@@ -51,6 +51,7 @@ tags:
   - topic/subtopic
 date: YYYY-MM-DD
 source: "(literature のみ) URL や書籍名"
+ai_generated: true # AI がノートを新規作成した場合のみ付与（agent 問わず共通）。人間のノートを編集しただけの場合は付けない
 aliases:
   - 別名
 ---
@@ -111,7 +112,7 @@ date: 2026-06-09
    - 自分の分析・まとめ → Permanent Note
    - 外部ドキュメント・記事の要約 → Literature Note（`source` フィールドに出典を記載）
 5. Zettelkasten 規約に従ってノートを作成する:
-   - frontmatter（title, type, tags, date）
+   - frontmatter（title, type, tags, date, ai_generated: true）
    - 本文（簡潔に。箇条書きやコードブロック活用）
    - 関連ノートへの `[[wikilink]]`
 6. 関連する MOC があれば追加する wikilink の差分を提示し、ユーザー確認後に更新する。なければ MOC の作成を提案する
