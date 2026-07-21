@@ -1,0 +1,9 @@
+sources:
+  - gist: https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d
+    name: japanese-tech-writing
+    author: k16shikano
+    license: Unlicense
+  - gist: https://gist.github.com/k16shikano/eb2929f13ed19c97188393d297be8432
+    name: cognitive-rhythm-writing
+    author: k16shikano
+    license: Unlicense

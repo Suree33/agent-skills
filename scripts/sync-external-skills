@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import re
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+
+import yaml
+
+
+ROOT = Path(__file__).resolve().parent.parent
+MANIFEST = ROOT / "skills/external/sources.yml"
+NAME_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+_MAX_FETCH_BYTES = 1 << 20  # SKILL.md files are tiny; cap guards CI memory against huge/malformed responses
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    pass
+
+
+def _mapping(loader: yaml.SafeLoader, node: yaml.MappingNode, deep: bool = False) -> dict:
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ValueError(f"duplicate mapping key: {key}")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
+
+
+def _frontmatter(text: str) -> tuple[list[str], int, dict]:
+    if not text.strip():
+        raise ValueError("fetched SKILL.md is empty")
+    if text.lstrip().lower().startswith(("<!doctype html", "<html")):
+        raise ValueError("fetched SKILL.md is HTML")
+
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].rstrip("\r\n") != "---":
+        raise ValueError("fetched SKILL.md has no frontmatter")
+
+    closing = next(
+        (index for index, line in enumerate(lines[1:], 1) if line.rstrip("\r\n") == "---"),
+        None,
+    )
+    if closing is None:
+        raise ValueError("fetched SKILL.md has unterminated frontmatter")
+
+    data = yaml.load("".join(lines[1:closing]), Loader=_UniqueKeyLoader)
+    if not isinstance(data, dict):
+        raise ValueError("SKILL.md frontmatter must be a mapping")
+    return lines, closing, data
+
+
+def _metadata_end(lines: list[str], start: int, closing: int) -> int:
+    for index in range(start + 1, closing):
+        line = lines[index]
+        if line.strip() and not line.startswith((" ", "\t", "#")):
+            return index
+    return closing
+
+
+def render(manifest_entry: dict[str, str], gist_raw_text: str) -> tuple[Path, str, list[str]]:
+    required = ("gist", "name", "author", "license")
+    if not isinstance(manifest_entry, dict) or any(
+        not isinstance(manifest_entry.get(key), str) or not manifest_entry[key] for key in required
+    ):
+        raise ValueError(f"manifest entry requires non-empty strings: {', '.join(required)}")
+
+    name = manifest_entry["name"]
+    if len(name) > 64 or not NAME_PATTERN.fullmatch(name):
+        raise ValueError(f"invalid skill name: {name!r}")
+
+    lines, closing, frontmatter = _frontmatter(gist_raw_text)
+    if frontmatter.get("name") != name:
+        raise ValueError(
+            f"frontmatter name {frontmatter.get('name')!r} does not match manifest name {name!r}"
+        )
+
+    expected = {
+        "license": manifest_entry["license"],
+        "author": manifest_entry["author"],
+        "source": manifest_entry["gist"],
+    }
+    license_present = "license" in frontmatter
+    license_value = frontmatter.get("license")
+    if license_present and license_value != expected["license"]:
+        raise ValueError(f"license conflicts with manifest: {license_value!r}")
+
+    metadata_present = "metadata" in frontmatter
+    metadata = frontmatter.get("metadata")
+    if metadata_present and not isinstance(metadata, dict):
+        raise ValueError("frontmatter metadata must be a mapping")
+    metadata = metadata or {}
+    for key in ("author", "source"):
+        if key in metadata and metadata[key] != expected[key]:
+            raise ValueError(f"metadata.{key} conflicts with manifest: {metadata[key]!r}")
+
+    newline = "\r\n" if lines[0].endswith("\r\n") else "\n"
+    insertions: dict[int, list[str]] = {}
+    if not license_present:
+        insertions.setdefault(closing, []).append(f"license: {expected['license']}{newline}")
+
+    missing_metadata = [key for key in ("author", "source") if key not in metadata]
+    if not metadata_present:
+        insertions.setdefault(closing, []).extend(
+            [
+                f"metadata:{newline}",
+                f"  author: {expected['author']}{newline}",
+                f"  source: {expected['source']}{newline}",
+            ]
+        )
+    elif missing_metadata:
+        metadata_line = next(
+            (
+                index
+                for index, line in enumerate(lines[1:closing], 1)
+                if re.match(r"^metadata\s*:\s*(?:#.*)?(?:\r?\n)?$", line)
+            ),
+            None,
+        )
+        if metadata_line is None:
+            raise ValueError("partial metadata must use block-style YAML")
+        insertion_index = _metadata_end(lines, metadata_line, closing)
+        insertions.setdefault(insertion_index, []).extend(
+            f"  {key}: {expected[key]}{newline}" for key in missing_metadata
+        )
+
+    rendered = "".join(
+        addition
+        for index, line in enumerate(lines)
+        for addition in (*insertions.get(index, []), line)
+    )
+    return Path("skills/external") / name / "SKILL.md", rendered, []
+
+
+def _raw_skill_url(gist_url: str) -> str:
+    parsed = urlparse(gist_url)
+    parts = parsed.path.strip("/").split("/")
+    if parsed.scheme != "https" or parsed.netloc != "gist.github.com" or len(parts) != 2:
+        raise ValueError(f"unsupported gist URL: {gist_url!r}")
+    return f"https://gist.githubusercontent.com/{parts[0]}/{parts[1]}/raw/SKILL.md"
+
+
+def _fetch(gist_url: str) -> str:
+    request = Request(_raw_skill_url(gist_url), headers={"User-Agent": "Suree33-agent-skills-sync"})
+    with urlopen(request, timeout=30) as response:
+        data = response.read(_MAX_FETCH_BYTES + 1)
+    if len(data) > _MAX_FETCH_BYTES:
+        raise ValueError(f"fetched SKILL.md exceeds {_MAX_FETCH_BYTES} bytes")
+    return data.decode("utf-8")
+
+
+def sync() -> None:
+    manifest = yaml.load(MANIFEST.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("sources"), list):
+        raise ValueError("sources.yml must contain a sources list")
+
+    rendered = []
+    for entry in manifest["sources"]:
+        if not isinstance(entry, dict):
+            raise ValueError("each source must be a mapping")
+        rendered.append(render(entry, _fetch(entry.get("gist", ""))))
+    targets = [target for target, _, _ in rendered]
+    if len(targets) != len(set(targets)):
+        raise ValueError("sources.yml contains duplicate skill names")
+
+    changes = [
+        (target, content, warnings)
+        for target, content, warnings in rendered
+        if not (ROOT / target).exists() or (ROOT / target).read_text(encoding="utf-8") != content
+    ]
+    if changes:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
+            temporary_path = Path(temporary)
+            staged = temporary_path / "staged"
+            backups = temporary_path / "backups"
+            for target, content, _ in changes:
+                path = staged / target
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+
+            replaced = []
+            try:
+                for target, _, _ in changes:
+                    destination = ROOT / target
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    if destination.exists():
+                        backup = backups / target
+                        backup.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(destination, backup)
+                    os.replace(staged / target, destination)
+                    replaced.append(target)
+            except OSError:
+                for target in reversed(replaced):
+                    destination = ROOT / target
+                    backup = backups / target
+                    if backup.exists():
+                        os.replace(backup, destination)
+                    else:
+                        destination.unlink(missing_ok=True)
+                raise
+
+    changed_targets = {target for target, _, _ in changes}
+    for target, _, warnings in rendered:
+        for warning in warnings:
+            print(f"warning: {warning}", file=sys.stderr)
+        print(f"updated: {target}" if target in changed_targets else f"unchanged: {target}")
+
+
+def self_test() -> None:
+    entry = {
+        "name": "example-skill",
+        "gist": "https://gist.github.com/example/0123456789abcdef",
+        "author": "example",
+        "license": "Unlicense",
+    }
+    original = "---\nname: example-skill\ndescription: Example\n---\n\n# Body\n"
+
+    def assert_error(text: str, expected: str) -> None:
+        try:
+            render(entry, text)
+        except ValueError as error:
+            assert expected in str(error)
+        else:
+            raise AssertionError(f"render() must reject {expected}")
+
+    target, rendered, warnings = render(entry, original)
+    assert target == Path("skills/external/example-skill/SKILL.md")
+    assert "license: Unlicense\nmetadata:\n  author: example\n  source: https://gist.github.com/example/0123456789abcdef\n" in rendered
+    assert rendered.endswith("---\n\n# Body\n")
+    assert warnings == []
+    assert render(entry, rendered) == (target, rendered, [])
+
+    mismatched = original.replace("name: example-skill", "name: renamed-skill")
+    assert_error(mismatched, "name")
+
+    conflicting = original.replace(
+        "description: Example\n",
+        "description: Example\nlicense: MIT\n",
+    )
+    assert_error(conflicting, "license")
+
+    duplicated = original.replace(
+        "description: Example\n",
+        "description: Example\nlicense: MIT\nlicense: Unlicense\n",
+    )
+    assert_error(duplicated, "duplicate")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Sync redistributed Agent Skills from public gists.")
+    parser.add_argument("--self-test", action="store_true", help="run render() checks without network access")
+    args = parser.parse_args()
+    if args.self_test:
+        self_test()
+    else:
+        sync()
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError, UnicodeError, ValueError, yaml.YAMLError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(1)
