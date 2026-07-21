@@ -16,6 +16,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "skills/external/sources.yml"
 NAME_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+_MAX_FETCH_BYTES = 1 << 20  # SKILL.md files are tiny; cap guards CI memory against huge/malformed responses
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -27,7 +28,7 @@ def _mapping(loader: yaml.SafeLoader, node: yaml.MappingNode, deep: bool = False
     for key_node, value_node in node.value:
         key = loader.construct_object(key_node, deep=deep)
         if key in mapping:
-            raise ValueError(f"duplicate frontmatter key: {key}")
+            raise ValueError(f"duplicate mapping key: {key}")
         mapping[key] = loader.construct_object(value_node, deep=deep)
     return mapping
 
@@ -151,11 +152,14 @@ def _raw_skill_url(gist_url: str) -> str:
 def _fetch(gist_url: str) -> str:
     request = Request(_raw_skill_url(gist_url), headers={"User-Agent": "Suree33-agent-skills-sync"})
     with urlopen(request, timeout=30) as response:
-        return response.read().decode("utf-8")
+        data = response.read(_MAX_FETCH_BYTES + 1)
+    if len(data) > _MAX_FETCH_BYTES:
+        raise ValueError(f"fetched SKILL.md exceeds {_MAX_FETCH_BYTES} bytes")
+    return data.decode("utf-8")
 
 
 def sync() -> None:
-    manifest = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+    manifest = yaml.load(MANIFEST.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
     if not isinstance(manifest, dict) or not isinstance(manifest.get("sources"), list):
         raise ValueError("sources.yml must contain a sources list")
 
