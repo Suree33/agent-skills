@@ -4,6 +4,7 @@ description: Obsidian vault のナレッジ管理。ノート・デイリーノ�
 license: MIT
 metadata:
   author: Suree33
+  version: "1.1.1"
 ---
 
 # Knowledge — Obsidian ナレッジ管理

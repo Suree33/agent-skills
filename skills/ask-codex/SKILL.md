@@ -8,6 +8,7 @@ description: >-
 license: MIT
 metadata:
   author: Suree33
+  version: "1.2.1"
 ---
 
 # ask-codex
