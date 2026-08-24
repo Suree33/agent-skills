@@ -8,7 +8,7 @@ description: >-
 license: MIT
 metadata:
   author: Suree33
-  version: "1.2.1"
+  version: "1.3.0"
 ---
 
 # ask-codex
@@ -80,9 +80,17 @@ echo "=== ANSWER ==="; cat "$OUT"
 - `--skip-git-repo-check`: git リポジトリ**外**で実行する場合のみ必要。リポジトリ内なら付けない。
 - `-s workspace-write`: Codex に編集させたいときだけ。このスキルの想定（read-only reviewer）からは外れるので、原則使わない。
 
-### モデル指定
+### モデル / reasoning effort の指定
 
-特定モデルを使いたい場合は `-m <MODEL>`（例: `-m gpt-5.5`）。指定が無ければ Codex の設定デフォルトに従う。むやみに指定せず、ユーザーの要望があるときだけ付ける。
+- **モデル**: `-m <MODEL>`（例: `-m gpt-5.5`）。
+- **Reasoning effort**: 専用フラグは無く、`-c model_reasoning_effort="<LEVEL>"` で `~/.codex/config.toml` の同名キーを上書きする。指定可能な値は `none` / `minimal` / `low` / `medium` / `high` / `xhigh` / `max` / `ultra`（どのレベルに対応するかはモデル依存）。
+
+どちらもユーザーによる指示が無ければ指定せず、Codex の設定デフォルトに従う。
+
+```bash
+printf '%s' "$PROMPT" | codex exec - -s read-only -C <DIR> \
+  -m gpt-5.5 -c model_reasoning_effort="high" -o "$OUT" >/dev/null 2>"$ERR"
+```
 
 ### Web 検索
 
