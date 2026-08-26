@@ -17,6 +17,8 @@ npx skills add Suree33/agent-skills --all
 
 ## スキル一覧
 
+- [ask-claude](skills/ask-claude/SKILL.md)
+  - Claude Code を使って独立した第二の意見、コードレビュー、バグ調査、設計判断を依頼する。Claude Opus 5 / Fable 5 の特性差を踏まえてモデルを選ぶ。
 - [ask-codex](skills/ask-codex/SKILL.md)
   - Codex を使って第二の意見・設計/実装アドバイス・根本原因の深掘り調査・変更のコードレビューを依頼する。主にClaude Codeなどから呼び出されることを想定している。[Amp](ampcode.com)のOracleをイメージして作成した。
 - [knowledge](skills/knowledge/SKILL.md)
