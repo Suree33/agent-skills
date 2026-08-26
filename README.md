@@ -17,12 +17,15 @@ npx skills add Suree33/agent-skills --all
 
 ## スキル一覧
 
-- [ask-claude](skills/ask-claude/SKILL.md)
-  - Claude Code を使って独立した第二の意見、コードレビュー、バグ調査、設計判断を依頼する。Claude Opus 5 / Fable 5 の特性差を踏まえてモデルを選ぶ。
 - [ask-codex](skills/ask-codex/SKILL.md)
   - Codex を使って第二の意見・設計/実装アドバイス・根本原因の深掘り調査・変更のコードレビューを依頼する。主にClaude Codeなどから呼び出されることを想定している。[Amp](ampcode.com)のOracleをイメージして作成した。
+- [ask-claude](skills/ask-claude/SKILL.md)
+  - Claude Code を使って独立した第二の意見、コードレビュー、バグ調査、設計判断を依頼する。
 - [knowledge](skills/knowledge/SKILL.md)
   - Obsidian Vault を使ってノートを検索・読み込み・追加する。
+ 
+### 外部由来のスキル
+
 - [japanese-tech-writing](skills/external/japanese-tech-writing/SKILL.md)
   - 日本語の技術文書や書籍原稿を、論理構成、読み手の負荷、表記の一貫性から執筆・推敲する。
 - [cognitive-rhythm-writing](skills/external/cognitive-rhythm-writing/SKILL.md)
