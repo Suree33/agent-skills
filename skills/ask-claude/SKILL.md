@@ -8,7 +8,7 @@ description: >-
 license: MIT
 metadata:
   author: Suree33
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # ask-claude
@@ -29,16 +29,14 @@ Claude Code は現在の会話を知らない。一方、既定では対象デ�
 
 ## モデルの選び方
 
-Claude Opus 5 と Claude Fable 5 は、タスクの難度と必要な能力で使い分ける。
+Opus tier と Fable tier は、タスクの難度と必要な能力で使い分ける。
 
-| モデル | 向く依頼 | 選択方針 |
+| tier（alias） | 向く依頼 | 選択方針 |
 |---|---|---|
-| Claude Opus 5 | コードレビュー、バグ発見、複数ファイルの設計/実装判断、長文脈、図・UI・文書 | `ask-claude` の既定。日常的な第二意見にはまずこれを使う |
-| Claude Fable 5 | 特に難しく、長く、曖昧な課題、最高能力を優先する分析 | Opus 5 で不足した時、または難度が明らかに高い時だけ使う。高コスト・長時間を見込む |
+| Opus（`opus`） | コードレビュー、バグ発見、複数ファイルの設計/実装判断、長文脈、図・UI・文書 | `ask-claude` の既定。日常的な第二意見にはまずこれを使う |
+| Fable（`fable`） | 特に難しく、長く、曖昧な課題、最高能力を優先する分析 | Opus で不足した時、または難度が明らかに高い時だけ使う。高コスト・長時間を見込む |
 
-Anthropic は Fable 5 を最難関・長時間・曖昧な課題、Opus 5 を複雑な agentic coding と高精度な review/bug-finding に位置づけている。
-
-ユーザーがモデルを指定したら従う。指定がなければ `opus`、最高能力が必要なら `fable` を使う。CLI の alias は将来の同 tier モデルへ更新され得るため、5 系を固定する必要がある時は `claude-opus-5` / `claude-fable-5` を指定する。
+ユーザーがモデルを指定したら従う。指定がなければ `opus`、最高能力が必要なら `fable` を使う。alias は同 tier の最新モデルを指すので、特定バージョンに固定する必要がある時だけ完全なモデル ID（例: `claude-opus-5`）を指定する。
 
 ## 基本の呼び出し
 
@@ -60,7 +58,7 @@ cat "$OUT"
 - stdin: 非対話モードは stdin を読める。上限は 10 MB なので、大きな diff や文書は pipe せずファイルパスを示す。
 - `--permission-mode plan`: 読み取り専用の調査・計画に制限する。このスキルでは既定にする。
 - `--no-session-persistence`: 相談を保存せず、毎回独立させる。
-- `--model opus`: 最新の Opus tier。Fable は `--model fable`、5 系固定は完全なモデル名へ置き換える。
+- `--model opus`: 最新の Opus tier。Fable は `--model fable`、バージョン固定は完全なモデル ID へ置き換える。
 - effort: 通常は指定せず、Claude Code 側の設定とモデル既定に従う。ユーザーが指定した場合だけ `--effort <LEVEL>` を追加する。
 - stdout: 最終回答。正準レシピでは一時ファイル経由で取得する。
 - stderr: 診断とエラー。成功時はコンテキストへ流さず、失敗時だけ表示する。
@@ -79,8 +77,8 @@ Claude の公式 prompting guidance に合わせる。
 - 出力形式、長さ、採否基準を具体的に指定する。否定だけでなく、望む形を肯定文で書く。
 - 長い資料を本文へ入れる場合は資料を先、質問を最後に置く。通常のコード調査では本文を複製せず関連パスを示す。
 - 「思考過程をすべて見せて」と依頼しない。結論、根拠、検証結果、不確実な点を求める。
-- Opus 5 は自ら検証する傾向が強い。一般的な「何度も自己検証して」は付けず、必要な受け入れ条件だけを書く。
-- Fable 5 には細かい思考手順を固定せず、目的・境界・成功条件を渡す。長時間依頼では、進捗や完了を tool result で裏付けるよう求める。
+- 一般的な「何度も自己検証して」は付けず、必要な受け入れ条件だけを書く（現行モデルは自ら検証する）。
+- 細かい思考手順を固定せず、目的・境界・成功条件を渡す。長時間依頼では、進捗や完了を tool result で裏付けるよう求める。
 
 基本形:
 
@@ -104,9 +102,9 @@ Claude の公式 prompting guidance に合わせる。
 
 ## 用途別の例
 
-### 1. Opus 5 でコードレビュー
+### 1. Opus でコードレビュー
 
-Opus 5 は review/bug-finding の recall が高い。公式 guidance に従い、最初から「重大なものだけ」と狭めず全 correctness issue を挙げさせ、受け手が severity を選別する。
+公式 guidance に従い、最初から「重大なものだけ」と狭めず全 correctness issue を挙げさせ、受け手が severity を選別する。
 
 ```bash
 OUT=$(mktemp /tmp/claude_answer.XXXXXX.txt)
@@ -134,9 +132,9 @@ CLAUDE_PROMPT
 cat "$OUT"
 ```
 
-### 2. Fable 5 で難しい設計判断
+### 2. Fable で難しい設計判断
 
-長く曖昧な課題、複数領域をまたぐ判断、Opus 5 で結論が出なかった課題に限って使う。
+長く曖昧な課題、複数領域をまたぐ判断、Opus で結論が出なかった課題に限って使う。
 
 ```bash
 OUT=$(mktemp /tmp/claude_answer.XXXXXX.txt)
